@@ -106,3 +106,13 @@ func (h *CollaborationHub) GetOnlineUsers() []string {
 	}
 	return users
 }
+
+// RegisterClient 注册客户端
+func (h *CollaborationHub) RegisterClient(client *Client) {
+	h.register <- client
+}
+
+// UnregisterClient 注销客户端
+func (h *CollaborationHub) UnregisterClient(client *Client) {
+	h.unregister <- client
+}

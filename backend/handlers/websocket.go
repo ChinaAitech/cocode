@@ -52,7 +52,7 @@ func HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 		Hub:      hub,
 	}
 
-	hub.register <- client
+	hub.RegisterClient(client)
 
 	// 发送当前代码状态
 	codeState := hub.GetCodeState()
@@ -79,38 +79,38 @@ func HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 	hub.BroadcastMessage(joinData)
 
 	// 启动读写协程
-	go client.writePump()
-	go client.readPump()
+	go writePump(client)
+	go readPump(client, hub)
 }
 
 // readPump 读取客户端消息
-func (c *services.Client) readPump() {
+func readPump(client *services.Client, hub *services.CollaborationHub) {
 	defer func() {
-		c.Hub.unregister <- c
-		c.Conn.Close()
+		hub.UnregisterClient(client)
+		client.Conn.Close()
 
 		// 广播用户离开
 		leaveMessage := models.WebSocketMessage{
 			Type:      "user_leave",
-			Username:  c.Username,
+			Username:  client.Username,
 			Timestamp: time.Now().Unix(),
 			Data: map[string]interface{}{
-				"username": c.Username,
-				"users":    c.Hub.GetOnlineUsers(),
+				"username": client.Username,
+				"users":    hub.GetOnlineUsers(),
 			},
 		}
 		leaveData, _ := json.Marshal(leaveMessage)
-		c.Hub.BroadcastMessage(leaveData)
+		hub.BroadcastMessage(leaveData)
 	}()
 
-	c.Conn.SetReadDeadline(time.Now().Add(60 * time.Second))
-	c.Conn.SetPongHandler(func(string) error {
-		c.Conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+	client.Conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+	client.Conn.SetPongHandler(func(string) error {
+		client.Conn.SetReadDeadline(time.Now().Add(60 * time.Second))
 		return nil
 	})
 
 	for {
-		_, message, err := c.Conn.ReadMessage()
+		_, message, err := client.Conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				log.Printf("WebSocket错误: %v", err)
@@ -125,7 +125,7 @@ func (c *services.Client) readPump() {
 			continue
 		}
 
-		wsMsg.Username = c.Username
+		wsMsg.Username = client.Username
 		wsMsg.Timestamp = time.Now().Unix()
 
 		// 处理不同类型的消息
@@ -134,45 +134,45 @@ func (c *services.Client) readPump() {
 			// 更新代码状态
 			if data, ok := wsMsg.Data.(map[string]interface{}); ok {
 				if code, ok := data["code"].(string); ok {
-					c.Hub.UpdateCodeState(code)
+					hub.UpdateCodeState(code)
 				}
 			}
 		case "compile":
 			// 编译请求（异步处理）
-			go handleCompileRequest(c, wsMsg)
+			go handleCompileRequest(client, wsMsg)
 			continue // 不广播编译请求
 		}
 
 		// 广播消息给所有客户端
 		broadcastData, _ := json.Marshal(wsMsg)
-		c.Hub.BroadcastMessage(broadcastData)
+		hub.BroadcastMessage(broadcastData)
 	}
 }
 
 // writePump 向客户端写入消息
-func (c *services.Client) writePump() {
+func writePump(client *services.Client) {
 	ticker := time.NewTicker(54 * time.Second)
 	defer func() {
 		ticker.Stop()
-		c.Conn.Close()
+		client.Conn.Close()
 	}()
 
 	for {
 		select {
-		case message, ok := <-c.Send:
-			c.Conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+		case message, ok := <-client.Send:
+			client.Conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
 			if !ok {
-				c.Conn.WriteMessage(websocket.CloseMessage, []byte{})
+				client.Conn.WriteMessage(websocket.CloseMessage, []byte{})
 				return
 			}
 
-			if err := c.Conn.WriteMessage(websocket.TextMessage, message); err != nil {
+			if err := client.Conn.WriteMessage(websocket.TextMessage, message); err != nil {
 				return
 			}
 
 		case <-ticker.C:
-			c.Conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
-			if err := c.Conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+			client.Conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+			if err := client.Conn.WriteMessage(websocket.PingMessage, nil); err != nil {
 				return
 			}
 		}
