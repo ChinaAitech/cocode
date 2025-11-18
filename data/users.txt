@@ -1,0 +1,6 @@
+# 用户文件格式: username:password:displayname
+# 密码使用简单的文本存储（实际项目建议使用哈希）
+admin:admin123:管理员
+userA:passwordA:用户A
+userB:passwordB:用户B
+userC:passwordC:用户C
