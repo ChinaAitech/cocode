@@ -8,6 +8,7 @@ frontend:
 	@echo "正在构建前端..."
 	cd frontend && npm install && npm run build
 	@echo "复制前端资源到后端嵌入目录..."
+	mkdir -p backend/embedded
 	rm -rf backend/embedded/dist
 	cp -r frontend/dist backend/embedded/dist
 	@echo "前端构建完成!"
