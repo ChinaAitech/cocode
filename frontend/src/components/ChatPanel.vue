@@ -262,11 +262,21 @@ const previewImage = (url) => {
 }
 
 // 自动滚动到底部
-watch(() => props.messages.length, async () => {
+const scrollToBottom = async () => {
   await nextTick()
   if (messagesContainer.value) {
     messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
   }
+}
+
+// 监听消息变化，自动滚动
+watch(() => props.messages, async () => {
+  await scrollToBottom()
+}, { deep: true })
+
+// 监听消息长度变化
+watch(() => props.messages.length, async () => {
+  await scrollToBottom()
 })
 </script>
 

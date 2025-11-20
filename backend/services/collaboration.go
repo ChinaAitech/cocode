@@ -37,7 +37,7 @@ func NewCollaborationHub() *CollaborationHub {
 		register:   make(chan *Client),
 		unregister: make(chan *Client),
 		codeState: &models.CodeState{
-			Code:    "// 欢迎使用协同编程平台\n// 在此编写你的C++代码\n\n#include <iostream>\n\nint main() {\n    std::cout << \"Hello, World!\" << std::endl;\n    return 0;\n}\n",
+			Code:    "// 欢迎使用协同编程平台\n// 在此编写你的C++代码\n\n#include <bits/stdc++.h>\nusing namespace std;\n\nint main() {\n    int n;\n    cin >> n;\n    cout << n*n << '\\n';\n    return 0;\n}\n",
 			Version: 0,
 			Updated: time.Now(),
 		},
