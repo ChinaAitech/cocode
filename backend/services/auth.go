@@ -123,3 +123,91 @@ func generateSessionID() (string, error) {
 	}
 	return hex.EncodeToString(b), nil
 }
+
+// GetAllUsers 获取所有用户（仅管理员）
+func GetAllUsers() []*models.User {
+	mu.RLock()
+	defer mu.RUnlock()
+
+	userList := make([]*models.User, 0, len(users))
+	for _, user := range users {
+		userList = append(userList, user)
+	}
+	return userList
+}
+
+// SaveUsers 保存用户到文件
+func SaveUsers() error {
+	mu.RLock()
+	defer mu.RUnlock()
+
+	file, err := os.Create(config.AppConfig.Auth.UsersFile)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	for _, user := range users {
+		line := user.Username + ":" + user.Password + ":" + user.DisplayName + "\n"
+		if _, err := file.WriteString(line); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// CreateUser 创建用户
+func CreateUser(username, password, displayName string) error {
+	mu.Lock()
+	defer mu.Unlock()
+
+	if _, exists := users[username]; exists {
+		return errors.New("用户已存在")
+	}
+
+	users[username] = &models.User{
+		Username:    username,
+		Password:    password,
+		DisplayName: displayName,
+	}
+
+	return nil
+}
+
+// UpdateUser 更新用户
+func UpdateUser(username, password, displayName string) error {
+	mu.Lock()
+	defer mu.Unlock()
+
+	user, exists := users[username]
+	if !exists {
+		return errors.New("用户不存在")
+	}
+
+	if password != "" {
+		user.Password = password
+	}
+	if displayName != "" {
+		user.DisplayName = displayName
+	}
+
+	return nil
+}
+
+// DeleteUser 删除用户
+func DeleteUser(username string) error {
+	mu.Lock()
+	defer mu.Unlock()
+
+	if username == "admin" {
+		return errors.New("不能删除管理员账号")
+	}
+
+	if _, exists := users[username]; !exists {
+		return errors.New("用户不存在")
+	}
+
+	delete(users, username)
+	return nil
+}

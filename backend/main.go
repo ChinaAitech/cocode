@@ -56,6 +56,12 @@ func main() {
 	mux.HandleFunc("/uploads/", handlers.HandleFileServe)
 	mux.HandleFunc("/ws", handlers.HandleWebSocket)
 
+	// 用户管理API（仅管理员）
+	mux.HandleFunc("/api/users", handlers.HandleGetUsers)
+	mux.HandleFunc("/api/users/create", handlers.HandleCreateUser)
+	mux.HandleFunc("/api/users/update", handlers.HandleUpdateUser)
+	mux.HandleFunc("/api/users/delete", handlers.HandleDeleteUser)
+
 	// 静态文件服务
 	var staticFS http.FileSystem
 

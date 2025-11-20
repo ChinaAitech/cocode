@@ -191,3 +191,16 @@ func (h *CollaborationHub) GetCompileRecords() []models.CompileRecord {
 	copy(records, h.compileRecords)
 	return records
 }
+
+// KickUser 踢出用户
+func (h *CollaborationHub) KickUser(username string) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	for client := range h.clients {
+		if client.Username == username {
+			close(client.Send)
+			delete(h.clients, client)
+			client.Conn.Close()
+		}
+	}
+}

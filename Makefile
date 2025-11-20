@@ -51,3 +51,15 @@ quick:
 	@echo "快速构建后端..."
 	cd backend && go build -o ../cocode main.go
 	@echo "快速构建完成!"
+
+# 构建 Linux 版本
+linux:
+	@echo "正在构建 Linux 版本..."
+	cd backend && GOOS=linux GOARCH=amd64 go build -o ../cocode-linux main.go
+	@echo "Linux 版本构建完成! (cocode-linux)"
+
+# 构建 Windows 版本
+win:
+	@echo "正在构建 Windows 版本..."
+	cd backend && GOOS=windows GOARCH=amd64 go build -o ../cocode-win.exe main.go
+	@echo "Windows 版本构建完成! (cocode-win.exe)"

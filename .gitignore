@@ -1,5 +1,6 @@
 # 编译输出
 cocode
+cocode-*
 *.exe
 *.out
 

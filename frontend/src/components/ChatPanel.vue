@@ -21,7 +21,25 @@
             </span>
             <span class="timestamp">{{ formatTime(msg.timestamp) }}</span>
           </div>
-          <div class="message-content">{{ msg.message }}</div>
+          <div class="message-content">
+            <!-- 文本消息 -->
+            <span v-if="!msg.fileUrl">{{ msg.message }}</span>
+
+            <!-- 图片消息 -->
+            <div v-else-if="msg.fileName && isImage(msg.fileName)" class="image-message">
+              <img :src="msg.fileUrl" :alt="msg.fileName" @click="previewImage(msg.fileUrl)" />
+              <div class="file-info">{{ msg.fileName }} ({{ formatFileSize(msg.fileSize) }})</div>
+            </div>
+
+            <!-- 文件消息 -->
+            <div v-else class="file-message">
+              <a :href="msg.fileUrl" :download="msg.fileName" class="file-link">
+                <el-icon><Document /></el-icon>
+                <span>{{ msg.fileName }}</span>
+              </a>
+              <div class="file-size">{{ formatFileSize(msg.fileSize) }}</div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -87,7 +105,7 @@
 
 <script setup>
 import { ref, watch, nextTick } from 'vue'
-import { InfoFilled, Promotion, ChatDotRound, Picture, Paperclip } from '@element-plus/icons-vue'
+import { InfoFilled, Promotion, ChatDotRound, Picture, Paperclip, Document } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 
 const props = defineProps({
@@ -220,6 +238,27 @@ const formatTime = (timestamp) => {
     hour: '2-digit',
     minute: '2-digit'
   })
+}
+
+// 判断是否为图片
+const isImage = (filename) => {
+  const imageExts = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp']
+  const ext = filename.toLowerCase().substring(filename.lastIndexOf('.'))
+  return imageExts.includes(ext)
+}
+
+// 格式化文件大小
+const formatFileSize = (bytes) => {
+  if (!bytes) return '0 B'
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i]
+}
+
+// 预览图片
+const previewImage = (url) => {
+  window.open(url, '_blank')
 }
 
 // 自动滚动到底部
@@ -361,5 +400,56 @@ watch(() => props.messages.length, async () => {
 .emoji-item:hover {
   background: #f5f7fa;
   transform: scale(1.2);
+}
+
+/* 图片消息 */
+.image-message {
+  margin-top: 5px;
+}
+
+.image-message img {
+  max-width: 200px;
+  max-height: 200px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.image-message img:hover {
+  transform: scale(1.05);
+}
+
+.file-info {
+  font-size: 11px;
+  color: #909399;
+  margin-top: 4px;
+}
+
+/* 文件消息 */
+.file-message {
+  margin-top: 5px;
+  padding: 8px;
+  background: #f5f7fa;
+  border-radius: 4px;
+  border: 1px solid #dcdfe6;
+}
+
+.file-link {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #409eff;
+  text-decoration: none;
+  font-size: 13px;
+}
+
+.file-link:hover {
+  text-decoration: underline;
+}
+
+.file-size {
+  font-size: 11px;
+  color: #909399;
+  margin-top: 4px;
 }
 </style>

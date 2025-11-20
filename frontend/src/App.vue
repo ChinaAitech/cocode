@@ -44,6 +44,14 @@
         </div>
         <div class="header-right">
           <el-tag type="success">{{ currentUser.displayName }}</el-tag>
+          <el-button
+            v-if="currentUser.username === 'admin'"
+            @click="showUserManagement"
+            size="small"
+            style="margin-left: 10px"
+          >
+            用户管理
+          </el-button>
           <el-button @click="handleLogout" size="small" style="margin-left: 10px">
             退出
           </el-button>
@@ -56,16 +64,21 @@
         <el-main class="editor-section">
           <div class="editor-header">
             <span>代码编辑器</span>
-            <div class="online-users">
-              在线用户:
-              <el-tag
-                v-for="user in onlineUsers"
-                :key="user"
-                size="small"
-                style="margin-left: 5px"
-              >
-                {{ user }}
-              </el-tag>
+            <div class="header-actions">
+              <el-button @click="downloadCode" size="small" :icon="Download">
+                下载代码
+              </el-button>
+              <div class="online-users">
+                在线用户:
+                <el-tag
+                  v-for="user in onlineUsers"
+                  :key="user"
+                  size="small"
+                  style="margin-left: 5px"
+                >
+                  {{ user }}
+                </el-tag>
+              </div>
             </div>
           </div>
           <CodeEditor
@@ -74,9 +87,9 @@
             @update:code="handleCodeUpdate"
           />
 
-          <!-- 输入输出区 -->
-          <div class="io-section">
-            <div class="input-area">
+          <!-- 输入输出标答三列布局 -->
+          <div class="io-section-three">
+            <div class="io-column">
               <div class="area-header">
                 输入区 (stdin)
                 <el-upload
@@ -87,7 +100,7 @@
                   :on-success="handleInputFileSuccess"
                   accept=".txt"
                 >
-                  <el-button size="small" :icon="Upload">上传文件</el-button>
+                  <el-button size="small" :icon="Upload">文件</el-button>
                 </el-upload>
               </div>
               <el-input
@@ -98,7 +111,7 @@
                 @input="handleInputChange"
               />
             </div>
-            <div class="output-area">
+            <div class="io-column">
               <div class="area-header">
                 输出区 (stdout)
                 <el-button @click="clearOutput" size="small" text>清空</el-button>
@@ -111,11 +124,7 @@
                 placeholder="程序输出将显示在这里..."
               />
             </div>
-          </div>
-
-          <!-- 标答和对比区 -->
-          <div class="io-section" style="margin-top: 10px">
-            <div class="input-area">
+            <div class="io-column">
               <div class="area-header">
                 标准答案
                 <el-upload
@@ -126,7 +135,7 @@
                   :on-success="handleAnswerFileSuccess"
                   accept=".txt"
                 >
-                  <el-button size="small" :icon="Upload">上传文件</el-button>
+                  <el-button size="small" :icon="Upload">文件</el-button>
                 </el-upload>
               </div>
               <el-input
@@ -137,33 +146,9 @@
                 @input="handleAnswerChange"
               />
             </div>
-            <div class="output-area">
-              <div class="area-header">
-                对比结果
-                <el-button @click="compareOutput" size="small" type="primary">对比</el-button>
-              </div>
-              <div class="compare-result" v-if="compareResult">
-                <div v-if="compareResult.isMatch" class="match-success">
-                  ✅ 输出完全匹配！
-                </div>
-                <div v-else class="match-failed">
-                  <div class="diff-summary">❌ 输出不匹配（{{ compareResult.differentLines.length }} 行不同）</div>
-                  <div class="diff-details">
-                    <div v-for="(diff, idx) in compareResult.differentLines" :key="idx" class="diff-line">
-                      <div class="line-number">第 {{ diff.line }} 行：</div>
-                      <div class="expected">期望: {{ diff.expected || '(空行)' }}</div>
-                      <div class="actual">实际: {{ diff.actual || '(空行)' }}</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div v-else class="no-compare">
-                点击"对比"按钮查看结果
-              </div>
-            </div>
           </div>
 
-          <!-- 编译和运行按钮 -->
+          <!-- 编译和对比按钮 -->
           <div class="action-buttons">
             <el-button
               type="primary"
@@ -174,21 +159,49 @@
               编译并运行
             </el-button>
             <el-button
-              @click="downloadCode"
-              :icon="Download"
+              type="success"
+              @click="compareOutput"
+              :icon="Check"
             >
-              下载代码
+              对比输出
             </el-button>
           </div>
 
-          <!-- 日志区 -->
-          <div class="log-section">
-            <div class="log-header">
-              <span>编译日志</span>
-              <el-button @click="clearLog" size="small" text>清空日志</el-button>
+          <!-- 日志和对比结果区 -->
+          <div class="log-compare-section">
+            <div class="log-half">
+              <div class="log-header">
+                <span>编译日志</span>
+                <el-button @click="clearLog" size="small" text>清空</el-button>
+              </div>
+              <div class="log-content" ref="logContent">
+                <pre>{{ compileLog }}</pre>
+              </div>
             </div>
-            <div class="log-content" ref="logContent">
-              <pre>{{ compileLog }}</pre>
+            <div class="compare-half">
+              <div class="log-header">
+                <span>对比结果</span>
+              </div>
+              <div class="compare-content">
+                <div class="compare-result" v-if="compareResult">
+                  <div v-if="compareResult.isMatch" class="match-success">
+                    ✅ 输出完全匹配！
+                  </div>
+                  <div v-else class="match-failed">
+                    <div class="diff-summary">❌ 输出不匹配（{{ compareResult.differentLines.length }} 行不同）</div>
+                    <div class="diff-details">
+                      <div v-for="(diff, idx) in compareResult.differentLines" :key="idx" class="diff-line">
+                        <div class="line-number">第 {{ diff.line }} 行：</div>
+                        <div class="expected">期望: {{ diff.expected || '(空行)' }}</div>
+                        <div class="actual">实际: {{ diff.actual || '(空行)' }}</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div v-else class="no-compare">
+                  点击"对比输出"按钮查看结果
+                </div>
+              </div>
             </div>
           </div>
         </el-main>
@@ -204,16 +217,31 @@
           />
         </el-aside>
       </el-container>
+
+      <!-- Copyright footer -->
+      <div class="copyright-footer">
+        © 2024 Frank Guo | 上海诶爱科技有限公司
+      </div>
+
+      <!-- 用户管理对话框 -->
+      <UserManagement
+        v-model="userManagementVisible"
+        :online-users="onlineUsersWithDetails"
+        :current-user="currentUser.username"
+        :session-id="sessionId"
+        @kick-user="handleKickUser"
+      />
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { VideoPlay, Download, Upload } from '@element-plus/icons-vue'
+import { VideoPlay, Download, Upload, Check } from '@element-plus/icons-vue'
 import CodeEditor from './components/CodeEditor.vue'
 import ChatPanel from './components/ChatPanel.vue'
+import UserManagement from './components/UserManagement.vue'
 
 // 登录相关
 const isLoggedIn = ref(false)
@@ -238,10 +266,18 @@ const compareResult = ref(null) // 对比结果
 // 聊天相关
 const chatMessages = ref([])
 
+// 用户管理相关
+const userManagementVisible = ref(false)
+
 // 组件引用
 const codeEditor = ref(null)
 const chatPanel = ref(null)
 const logContent = ref(null)
+
+// 在线用户详情(用于用户管理)
+const onlineUsersWithDetails = computed(() => {
+  return onlineUsers.value.map(username => ({ username }))
+})
 
 // 登录处理
 const handleLogin = async () => {
@@ -299,6 +335,21 @@ const handleLogout = async () => {
   sessionId.value = ''
   currentUser.value = { username: '', displayName: '' }
   ElMessage.success('已退出登录')
+}
+
+// 显示用户管理
+const showUserManagement = () => {
+  userManagementVisible.value = true
+}
+
+// 踢出用户
+const handleKickUser = (username) => {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({
+      type: 'kick_user',
+      data: { username }
+    }))
+  }
 }
 
 // WebSocket连接
@@ -368,6 +419,31 @@ const handleWebSocketMessage = (message) => {
       })
       break
 
+    case 'user_kicked':
+      // 用户被踢出
+      if (message.data && message.data.username) {
+        const kickedUser = message.data.username
+        chatMessages.value.push({
+          type: 'system',
+          message: `${kickedUser} 被管理员踢出房间`,
+          timestamp: message.timestamp
+        })
+
+        // 如果被踢的是当前用户，强制登出
+        if (kickedUser === currentUser.value.username) {
+          ElMessage.warning('您已被管理员踢出房间')
+          setTimeout(() => {
+            if (ws) {
+              ws.close()
+            }
+            isLoggedIn.value = false
+            sessionId.value = ''
+            currentUser.value = { username: '', displayName: '' }
+          }, 1000)
+        }
+      }
+      break
+
     case 'edit':
       // 其他用户的编辑
       if (message.username !== currentUser.value.username && message.data) {
@@ -401,7 +477,10 @@ const handleWebSocketMessage = (message) => {
       chatMessages.value.push({
         type: 'chat',
         username: message.username,
-        message: message.data.message,
+        message: message.data.message || '',
+        fileUrl: message.data.fileUrl,
+        fileName: message.data.fileName,
+        fileSize: message.data.fileSize,
         timestamp: message.timestamp
       })
       break
@@ -696,21 +775,27 @@ onUnmounted(() => {
   font-weight: bold;
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
 .online-users {
   display: flex;
   align-items: center;
   font-size: 14px;
 }
 
-/* 输入输出区 */
-.io-section {
+/* 输入输出标答三列 */
+.io-section-three {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr;
   gap: 10px;
   margin-top: 10px;
 }
 
-.input-area, .output-area {
+.io-column {
   display: flex;
   flex-direction: column;
 }
@@ -729,13 +814,18 @@ onUnmounted(() => {
   text-align: center;
 }
 
-/* 日志区 */
-.log-section {
+/* 日志和对比结果区 */
+.log-compare-section {
   margin-top: 10px;
-  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  min-height: 200px;
+}
+
+.log-half, .compare-half {
   display: flex;
   flex-direction: column;
-  min-height: 150px;
 }
 
 .log-header {
@@ -763,6 +853,15 @@ onUnmounted(() => {
   word-wrap: break-word;
 }
 
+.compare-content {
+  flex: 1;
+  background: #f5f5f5;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 10px;
+  overflow-y: auto;
+}
+
 /* 聊天区 */
 .chat-section {
   border-left: 1px solid #ddd;
@@ -771,12 +870,7 @@ onUnmounted(() => {
 
 /* 对比结果区 */
 .compare-result {
-  background: #f5f5f5;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  padding: 10px;
-  max-height: 200px;
-  overflow-y: auto;
+  height: 100%;
 }
 
 .match-success {
@@ -839,5 +933,15 @@ onUnmounted(() => {
   color: #909399;
   padding: 40px 20px;
   font-size: 14px;
+}
+
+/* Copyright footer */
+.copyright-footer {
+  text-align: center;
+  padding: 10px;
+  background: #f5f5f5;
+  color: #666;
+  font-size: 12px;
+  border-top: 1px solid #ddd;
 }
 </style>
