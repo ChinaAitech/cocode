@@ -175,7 +175,7 @@
                 <el-button @click="clearLog" size="small" text>清空</el-button>
               </div>
               <div class="log-content" ref="logContent">
-                <pre>{{ compileLog }}</pre>
+                <pre>{{ reversedCompileLog }}</pre>
               </div>
             </div>
             <div class="compare-half">
@@ -277,6 +277,12 @@ const logContent = ref(null)
 // 在线用户详情(用于用户管理)
 const onlineUsersWithDetails = computed(() => {
   return onlineUsers.value.map(username => ({ username }))
+})
+
+// 倒序显示编译日志（最新的在上面）
+const reversedCompileLog = computed(() => {
+  const lines = compileLog.value.split('\n')
+  return lines.reverse().join('\n')
 })
 
 // 登录处理
@@ -765,6 +771,7 @@ onUnmounted(() => {
   flex-direction: column;
   padding: 10px;
   overflow: hidden;
+  justify-content: flex-start;
 }
 
 .editor-header {
@@ -820,7 +827,8 @@ onUnmounted(() => {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
-  min-height: 200px;
+  min-height: 100px;
+  max-height: 150px;
 }
 
 .log-half, .compare-half {
