@@ -211,3 +211,16 @@ func DeleteUser(username string) error {
 	delete(users, username)
 	return nil
 }
+
+// GetUserByUsername 根据用户名获取用户
+func GetUserByUsername(username string) (*models.User, error) {
+	mu.RLock()
+	defer mu.RUnlock()
+
+	user, exists := users[username]
+	if !exists {
+		return nil, errors.New("用户不存在")
+	}
+
+	return user, nil
+}
