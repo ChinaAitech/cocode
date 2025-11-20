@@ -17,7 +17,7 @@
         <div v-else class="chat-message" :style="{ borderLeftColor: getUserColor(msg.username) }">
           <div class="message-header">
             <span class="username" :style="{ color: getUserColor(msg.username) }">
-              {{ msg.username }}
+              {{ msg.displayName || msg.username }}
             </span>
             <span class="timestamp">{{ formatTime(msg.timestamp) }}</span>
           </div>

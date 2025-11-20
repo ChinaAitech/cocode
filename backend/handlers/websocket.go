@@ -67,9 +67,10 @@ func HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 	codeState := hub.GetCodeState()
 	sharedState := hub.GetSharedState()
 	initMessage := models.WebSocketMessage{
-		Type:      "init",
-		Username:  "system",
-		Timestamp: time.Now().Unix(),
+		Type:        "init",
+		Username:    "system",
+		DisplayName: "系统",
+		Timestamp:   time.Now().Unix(),
 		Data: map[string]interface{}{
 			"code":        codeState.Code,
 			"inputData":   sharedState.InputData,
@@ -83,11 +84,12 @@ func HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 
 	// 广播用户加入
 	joinMessage := models.WebSocketMessage{
-		Type:      "user_join",
-		Username:  session.Username,
-		Timestamp: time.Now().Unix(),
+		Type:        "user_join",
+		Username:    client.Username,
+		DisplayName: client.DisplayName,
+		Timestamp:   time.Now().Unix(),
 		Data: map[string]interface{}{
-			"username": session.Username,
+			"username": client.Username,
 			"users":    hub.GetOnlineUsers(),
 		},
 	}
@@ -107,9 +109,10 @@ func readPump(client *services.Client, hub *services.CollaborationHub) {
 
 		// 广播用户离开
 		leaveMessage := models.WebSocketMessage{
-			Type:      "user_leave",
-			Username:  client.Username,
-			Timestamp: time.Now().Unix(),
+			Type:        "user_leave",
+			Username:    client.Username,
+			DisplayName: client.DisplayName,
+			Timestamp:   time.Now().Unix(),
 			Data: map[string]interface{}{
 				"username": client.Username,
 				"users":    hub.GetOnlineUsers(),
@@ -142,6 +145,7 @@ func readPump(client *services.Client, hub *services.CollaborationHub) {
 		}
 
 		wsMsg.Username = client.Username
+		wsMsg.DisplayName = client.DisplayName
 		wsMsg.Timestamp = time.Now().Unix()
 
 		// 处理不同类型的消息
@@ -179,9 +183,10 @@ func readPump(client *services.Client, hub *services.CollaborationHub) {
 						hub.KickUser(targetUser)
 						// 广播踢人通知
 						kickMsg := models.WebSocketMessage{
-							Type:      "user_kicked",
-							Username:  "system",
-							Timestamp: time.Now().Unix(),
+							Type:        "user_kicked",
+							Username:    "system",
+							DisplayName: "系统",
+							Timestamp:   time.Now().Unix(),
 							Data: map[string]interface{}{
 								"username": targetUser,
 								"kickedBy": client.Username,
@@ -257,21 +262,22 @@ func handleCompileRequest(client *services.Client, msg models.WebSocketMessage, 
 	hub.UpdateOutputData(result.Output)
 	logMsg := fmt.Sprintf("\n[%s] %s 执行了编译\n%s\n",
 		time.Now().Format("15:04:05"),
-		client.Username,
+		client.DisplayName,
 		result.Message)
 	currentLog := hub.GetSharedState().CompileLog
 	hub.UpdateCompileLog(currentLog + logMsg)
 
 	// 广播编译结果给所有用户
 	broadcastMsg := models.WebSocketMessage{
-		Type:      "compile_result",
-		Username:  client.Username,
-		Timestamp: time.Now().Unix(),
+		Type:        "compile_result",
+		Username:    client.Username,
+		DisplayName: client.DisplayName,
+		Timestamp:   time.Now().Unix(),
 		Data: map[string]interface{}{
 			"success":    result.Success,
 			"message":    result.Message,
 			"output":     result.Output,
-			"compiledBy": client.Username,
+			"compiledBy": client.DisplayName,
 			"compileLog": hub.GetSharedState().CompileLog,
 		},
 	}

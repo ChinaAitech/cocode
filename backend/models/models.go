@@ -20,10 +20,11 @@ type Session struct {
 
 // WebSocketMessage WebSocket消息结构
 type WebSocketMessage struct {
-	Type      string      `json:"type"`      // message类型: edit, cursor, chat, compile, run
-	Username  string      `json:"username"`  // 发送者
-	Timestamp int64       `json:"timestamp"` // 时间戳
-	Data      interface{} `json:"data"`      // 消息数据
+	Type        string      `json:"type"`               // message类型: edit, cursor, chat, compile, run
+	Username    string      `json:"username"`           // 发送者用户名
+	DisplayName string      `json:"displayName"`        // 发送者显示名称
+	Timestamp   int64       `json:"timestamp"`          // 时间戳
+	Data        interface{} `json:"data"`               // 消息数据
 }
 
 // EditOperation 编辑操作
