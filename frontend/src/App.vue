@@ -1,36 +1,43 @@
 <template>
   <div id="app">
     <!-- 登录页面 -->
+    <!-- 登录页面 -->
     <div v-if="!isLoggedIn" class="login-container">
-      <el-card class="login-card">
+      <div class="login-background"></div>
+      <el-card class="login-card glass-effect">
         <template #header>
           <div class="card-header">
-            <h2>协同编程平台</h2>
+            <h2 class="gradient-text">协同编程平台</h2>
+            <p class="subtitle">Next Gen Collaborative Coding</p>
           </div>
         </template>
-        <el-form :model="loginForm" @submit.prevent="handleLogin">
-          <el-form-item label="用户名">
-            <el-input v-model="loginForm.username" placeholder="请输入用户名" />
-          </el-form-item>
-          <el-form-item label="密码">
-            <el-input
-              v-model="loginForm.password"
-              type="password"
-              placeholder="请输入密码"
-              @keyup.enter="handleLogin"
+        <el-form :model="loginForm" @submit.prevent="handleLogin" class="login-form">
+          <el-form-item>
+            <el-input 
+              v-model="loginForm.username" 
+              placeholder="用户名" 
+              prefix-icon="User"
+              class="glass-input"
             />
           </el-form-item>
           <el-form-item>
-            <el-button type="primary" @click="handleLogin" :loading="loginLoading" style="width: 100%">
-              登录
+            <el-input
+              v-model="loginForm.password"
+              type="password"
+              placeholder="密码"
+              prefix-icon="Lock"
+              @keyup.enter="handleLogin"
+              class="glass-input"
+            />
+          </el-form-item>
+          <el-form-item>
+            <el-button type="primary" @click="handleLogin" :loading="loginLoading" class="login-btn">
+              登 录
             </el-button>
           </el-form-item>
         </el-form>
         <div class="login-tips">
-          <p>默认账号：</p>
-          <p>admin / admin123</p>
-          <p>userA / passwordA</p>
-          <p>userB / passwordB</p>
+          <p>默认账号：admin / admin123</p>
         </div>
       </el-card>
     </div>
@@ -63,7 +70,22 @@
         <!-- 代码编辑区 -->
         <el-main class="editor-section">
           <div class="editor-header">
-            <span>代码编辑器</span>
+            <div class="header-left-controls">
+              <span>代码编辑器</span>
+              <el-switch
+                v-model="showModules"
+                active-text="显示附加模块"
+                inactive-text="隐藏附加模块"
+                style="margin-left: 20px"
+              />
+              <div class="font-size-controls" style="margin-left: 20px">
+                <el-button-group>
+                  <el-button size="small" @click="decreaseFontSize" :icon="Minus" />
+                  <el-button size="small" disabled>{{ fontSize }}px</el-button>
+                  <el-button size="small" @click="increaseFontSize" :icon="Plus" />
+                </el-button-group>
+              </div>
+            </div>
             <div class="header-actions">
               <el-button @click="downloadCode" size="small" :icon="Download">
                 下载代码
@@ -85,123 +107,126 @@
             <CodeEditor
               ref="codeEditor"
               :code="code"
+              :font-size="fontSize"
               @update:code="handleCodeUpdate"
             />
           </div>
 
           <!-- 输入输出标答三列布局 -->
-          <div class="io-section-three">
-            <div class="io-column">
-              <div class="area-header">
-                输入区 (stdin)
-                <el-upload
-                  action="/api/upload"
-                  :headers="{ 'X-Session-ID': sessionId }"
-                  :show-file-list="false"
-                  :before-upload="beforeInputUpload"
-                  :on-success="handleInputFileSuccess"
-                  accept=".txt"
-                >
-                  <el-button size="small" :icon="Upload">文件</el-button>
-                </el-upload>
+          <div v-if="showModules" class="modules-container">
+            <div class="io-section-three">
+              <div class="io-column">
+                <div class="area-header">
+                  输入区 (stdin)
+                  <el-upload
+                    action="/api/upload"
+                    :headers="{ 'X-Session-ID': sessionId }"
+                    :show-file-list="false"
+                    :before-upload="beforeInputUpload"
+                    :on-success="handleInputFileSuccess"
+                    accept=".txt"
+                  >
+                    <el-button size="small" :icon="Upload">文件</el-button>
+                  </el-upload>
+                </div>
+                <el-input
+                  v-model="inputData"
+                  type="textarea"
+                  :rows="6"
+                  placeholder="输入程序的标准输入..."
+                  @input="handleInputChange"
+                />
               </div>
-              <el-input
-                v-model="inputData"
-                type="textarea"
-                :rows="6"
-                placeholder="输入程序的标准输入..."
-                @input="handleInputChange"
-              />
-            </div>
-            <div class="io-column">
-              <div class="area-header">
-                输出区 (stdout)
-                <el-button @click="clearOutput" size="small" text>清空</el-button>
+              <div class="io-column">
+                <div class="area-header">
+                  输出区 (stdout)
+                  <el-button @click="clearOutput" size="small" text>清空</el-button>
+                </div>
+                <el-input
+                  v-model="outputData"
+                  type="textarea"
+                  :rows="6"
+                  readonly
+                  placeholder="程序输出将显示在这里..."
+                />
               </div>
-              <el-input
-                v-model="outputData"
-                type="textarea"
-                :rows="6"
-                readonly
-                placeholder="程序输出将显示在这里..."
-              />
-            </div>
-            <div class="io-column">
-              <div class="area-header">
-                标准答案
-                <el-upload
-                  action="/api/upload"
-                  :headers="{ 'X-Session-ID': sessionId }"
-                  :show-file-list="false"
-                  :before-upload="beforeInputUpload"
-                  :on-success="handleAnswerFileSuccess"
-                  accept=".txt"
-                >
-                  <el-button size="small" :icon="Upload">文件</el-button>
-                </el-upload>
+              <div class="io-column">
+                <div class="area-header">
+                  标准答案
+                  <el-upload
+                    action="/api/upload"
+                    :headers="{ 'X-Session-ID': sessionId }"
+                    :show-file-list="false"
+                    :before-upload="beforeInputUpload"
+                    :on-success="handleAnswerFileSuccess"
+                    accept=".txt"
+                  >
+                    <el-button size="small" :icon="Upload">文件</el-button>
+                  </el-upload>
+                </div>
+                <el-input
+                  v-model="answerData"
+                  type="textarea"
+                  :rows="6"
+                  placeholder="输入标准答案..."
+                  @input="handleAnswerChange"
+                />
               </div>
-              <el-input
-                v-model="answerData"
-                type="textarea"
-                :rows="6"
-                placeholder="输入标准答案..."
-                @input="handleAnswerChange"
-              />
             </div>
-          </div>
 
-          <!-- 编译和对比按钮 -->
-          <div class="action-buttons">
-            <el-button
-              type="primary"
-              @click="compileAndRun"
-              :loading="compiling"
-              :icon="VideoPlay"
-            >
-              编译并运行
-            </el-button>
-            <el-button
-              type="success"
-              @click="compareOutput"
-              :icon="Check"
-            >
-              对比输出
-            </el-button>
-          </div>
-
-          <!-- 日志和对比结果区 -->
-          <div class="log-compare-section">
-            <div class="log-half">
-              <div class="log-header">
-                <span>编译日志</span>
-                <el-button @click="clearLog" size="small" text>清空</el-button>
-              </div>
-              <div class="log-content" ref="logContent">
-                <pre>{{ reversedCompileLog }}</pre>
-              </div>
+            <!-- 编译和对比按钮 -->
+            <div class="action-buttons">
+              <el-button
+                type="primary"
+                @click="compileAndRun"
+                :loading="compiling"
+                :icon="VideoPlay"
+              >
+                编译并运行
+              </el-button>
+              <el-button
+                type="success"
+                @click="compareOutput"
+                :icon="Check"
+              >
+                对比输出
+              </el-button>
             </div>
-            <div class="compare-half">
-              <div class="log-header">
-                <span>对比结果</span>
+
+            <!-- 日志和对比结果区 -->
+            <div class="log-compare-section">
+              <div class="log-half">
+                <div class="log-header">
+                  <span>编译日志</span>
+                  <el-button @click="clearLog" size="small" text>清空</el-button>
+                </div>
+                <div class="log-content" ref="logContent">
+                  <pre>{{ reversedCompileLog }}</pre>
+                </div>
               </div>
-              <div class="compare-content">
-                <div class="compare-result" v-if="compareResult">
-                  <div v-if="compareResult.isMatch" class="match-success">
-                    ✅ 输出完全匹配！
-                  </div>
-                  <div v-else class="match-failed">
-                    <div class="diff-summary">❌ 输出不匹配（{{ compareResult.differentLines.length }} 行不同）</div>
-                    <div class="diff-details">
-                      <div v-for="(diff, idx) in compareResult.differentLines" :key="idx" class="diff-line">
-                        <div class="line-number">第 {{ diff.line }} 行：</div>
-                        <div class="expected">期望: {{ diff.expected || '(空行)' }}</div>
-                        <div class="actual">实际: {{ diff.actual || '(空行)' }}</div>
+              <div class="compare-half">
+                <div class="log-header">
+                  <span>对比结果</span>
+                </div>
+                <div class="compare-content">
+                  <div class="compare-result" v-if="compareResult">
+                    <div v-if="compareResult.isMatch" class="match-success">
+                      ✅ 输出完全匹配！
+                    </div>
+                    <div v-else class="match-failed">
+                      <div class="diff-summary">❌ 输出不匹配（{{ compareResult.differentLines.length }} 行不同）</div>
+                      <div class="diff-details">
+                        <div v-for="(diff, idx) in compareResult.differentLines" :key="idx" class="diff-line">
+                          <div class="line-number">第 {{ diff.line }} 行：</div>
+                          <div class="expected">期望: {{ diff.expected || '(空行)' }}</div>
+                          <div class="actual">实际: {{ diff.actual || '(空行)' }}</div>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-                <div v-else class="no-compare">
-                  点击"对比输出"按钮查看结果
+                  <div v-else class="no-compare">
+                    点击"对比输出"按钮查看结果
+                  </div>
                 </div>
               </div>
             </div>
@@ -239,8 +264,8 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { ElMessage } from 'element-plus'
-import { VideoPlay, Download, Upload, Check } from '@element-plus/icons-vue'
+import { ElMessage, ElNotification } from 'element-plus'
+import { VideoPlay, Download, Upload, Check, Plus, Minus, User, Lock } from '@element-plus/icons-vue'
 import CodeEditor from './components/CodeEditor.vue'
 import ChatPanel from './components/ChatPanel.vue'
 import UserManagement from './components/UserManagement.vue'
@@ -258,6 +283,8 @@ const onlineUsers = ref([])
 
 // 代码相关
 const code = ref('')
+const showModules = ref(false)
+const fontSize = ref(14)
 const inputData = ref('')
 const outputData = ref('')
 const compileLog = ref('等待编译...\n')
@@ -527,6 +554,35 @@ const handleWebSocketMessage = (message) => {
       }, 100)
       break
   }
+
+  // 浏览器通知
+  if (document.hidden && message.type === 'chat') {
+    sendBrowserNotification(message)
+  }
+}
+
+// 发送浏览器通知
+const sendBrowserNotification = (message) => {
+  if (Notification.permission === 'granted') {
+    const notification = new Notification(`来自 ${message.displayName || message.username} 的消息`, {
+      body: message.data.message || '发送了一个文件',
+      icon: '/favicon.ico'
+    })
+    
+    notification.onclick = () => {
+      window.focus()
+      notification.close()
+    }
+  }
+}
+
+// 字体大小控制
+const increaseFontSize = () => {
+  if (fontSize.value < 30) fontSize.value += 2
+}
+
+const decreaseFontSize = () => {
+  if (fontSize.value > 10) fontSize.value -= 2
 }
 
 // 代码更新
@@ -693,7 +749,10 @@ const clearLog = () => {
 
 // 生命周期
 onMounted(() => {
-  // 可以在这里添加初始化逻辑
+  // 请求通知权限
+  if (Notification.permission !== 'granted' && Notification.permission !== 'denied') {
+    Notification.requestPermission()
+  }
 })
 
 onUnmounted(() => {
@@ -715,22 +774,111 @@ onUnmounted(() => {
   justify-content: center;
   align-items: center;
   height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.login-background {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: url('/login-bg.png');
+  background-size: cover;
+  background-position: center;
+  z-index: -1;
 }
 
 .login-card {
-  width: 400px;
+  width: 420px;
+  border: none !important;
+  border-radius: 16px !important;
+}
+
+.glass-effect {
+  background: rgba(255, 255, 255, 0.1) !important;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37) !important;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
 }
 
 .card-header {
   text-align: center;
+  padding: 10px 0;
+}
+
+.gradient-text {
+  background: linear-gradient(135deg, #00f260 0%, #0575e6 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-size: 28px;
+  font-weight: 800;
+  margin: 0;
+  letter-spacing: 1px;
+}
+
+.subtitle {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 12px;
+  margin: 5px 0 0;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.login-form {
+  padding: 20px 10px;
+}
+
+.glass-input :deep(.el-input__wrapper) {
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: none;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  padding: 8px 15px;
+  transition: all 0.3s ease;
+}
+
+.glass-input :deep(.el-input__wrapper:hover),
+.glass-input :deep(.el-input__wrapper.is-focus) {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.5);
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
+}
+
+.glass-input :deep(.el-input__inner) {
+  color: white;
+  height: 30px;
+}
+
+.glass-input :deep(.el-input__inner::placeholder) {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.login-btn {
+  width: 100%;
+  height: 45px;
+  border-radius: 8px;
+  background: linear-gradient(90deg, #00f260 0%, #0575e6 100%);
+  border: none;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  margin-top: 10px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.login-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(5, 117, 230, 0.4);
 }
 
 .login-tips {
   text-align: center;
-  color: #909399;
+  color: rgba(255, 255, 255, 0.6);
   font-size: 12px;
-  margin-top: 20px;
+  margin-top: 10px;
 }
 
 .login-tips p {

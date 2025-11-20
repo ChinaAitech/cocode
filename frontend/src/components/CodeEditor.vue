@@ -10,6 +10,10 @@ const props = defineProps({
   code: {
     type: String,
     default: ''
+  },
+  fontSize: {
+    type: Number,
+    default: 14
   }
 })
 
@@ -26,7 +30,7 @@ onMounted(() => {
     language: 'cpp',
     theme: 'vs-dark',
     automaticLayout: true,
-    fontSize: 14,
+    fontSize: props.fontSize,
     minimap: {
       enabled: true
     },
@@ -58,6 +62,12 @@ watch(() => props.code, (newCode) => {
       editor.setPosition(position)
     }
     isUpdatingFromProp = false
+  }
+})
+
+watch(() => props.fontSize, (newSize) => {
+  if (editor) {
+    editor.updateOptions({ fontSize: newSize })
   }
 })
 

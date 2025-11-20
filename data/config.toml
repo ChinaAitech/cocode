@@ -1,0 +1,31 @@
+[server]
+host = "0.0.0.0"
+port = 8280
+# 静态文件路径（开发时使用，生产时使用嵌入资源）
+static_path = "./frontend/dist"
+
+[compiler]
+# C++ 编译器路径
+compiler = "g++"
+# 编译参数
+compile_flags = ["-std=c++17", "-Wall"]
+# 编译超时（秒）
+compile_timeout = 30
+# 运行超时（秒）
+run_timeout = 10
+# 临时文件目录
+temp_dir = "./data/temp"
+
+[auth]
+# 用户文件路径
+users_file = "./data/users.txt"
+# Session 超时（小时）
+session_timeout = 24
+
+[websocket]
+# WebSocket 路径
+path = "/ws"
+# 心跳间隔（秒）
+ping_interval = 30
+# 消息缓冲区大小
+buffer_size = 1024
