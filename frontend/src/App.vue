@@ -483,6 +483,7 @@ const handleWebSocketMessage = (message) => {
       chatMessages.value.push({
         type: 'chat',
         username: message.username,
+        displayName: message.displayName || message.username,
         message: message.data.message || '',
         fileUrl: message.data.fileUrl,
         fileName: message.data.fileName,
@@ -769,7 +770,7 @@ onUnmounted(() => {
 .editor-section {
   display: flex;
   flex-direction: column;
-  padding: 10px;
+  padding: 0;
   overflow-y: auto;
   justify-content: flex-start;
 }
@@ -805,6 +806,7 @@ onUnmounted(() => {
 .io-column {
   display: flex;
   flex-direction: column;
+  justify-content: flex-end;
 }
 
 .area-header {
@@ -813,6 +815,11 @@ onUnmounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  order: 2;
+}
+
+.io-column .el-textarea {
+  order: 1;
 }
 
 /* 操作按钮 */
@@ -834,6 +841,7 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   min-height: 0;
+  justify-content: flex-end;
 }
 
 .log-header {
@@ -842,6 +850,7 @@ onUnmounted(() => {
   align-items: center;
   font-weight: bold;
   margin-bottom: 5px;
+  order: 2;
 }
 
 .log-content {
@@ -851,8 +860,13 @@ onUnmounted(() => {
   border-radius: 4px;
   padding: 10px;
   overflow-y: auto;
+  overflow-x: hidden;
   font-family: 'Courier New', monospace;
   font-size: 12px;
+  order: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
 }
 
 .log-content pre {
@@ -868,6 +882,11 @@ onUnmounted(() => {
   border-radius: 4px;
   padding: 10px;
   overflow-y: auto;
+  overflow-x: hidden;
+  order: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
 }
 
 /* 聊天区 */
