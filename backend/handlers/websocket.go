@@ -163,6 +163,28 @@ func readPump(client *services.Client, hub *services.CollaborationHub) {
 			// 编译请求（异步处理）
 			go handleCompileRequest(client, wsMsg, hub)
 			continue // 不广播编译请求
+		case "kick_user":
+			// 踢人请求（仅管理员）
+			if client.Username == "admin" {
+				if data, ok := wsMsg.Data.(map[string]interface{}); ok {
+					if targetUser, ok := data["username"].(string); ok {
+						hub.KickUser(targetUser)
+						// 广播踢人通知
+						kickMsg := models.WebSocketMessage{
+							Type:      "user_kicked",
+							Username:  "system",
+							Timestamp: time.Now().Unix(),
+							Data: map[string]interface{}{
+								"username": targetUser,
+								"kickedBy": client.Username,
+							},
+						}
+						kickData, _ := json.Marshal(kickMsg)
+						hub.BroadcastMessage(kickData)
+					}
+				}
+			}
+			continue // 不广播踢人请求
 		}
 
 		// 广播消息给所有客户端

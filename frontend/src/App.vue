@@ -44,6 +44,14 @@
         </div>
         <div class="header-right">
           <el-tag type="success">{{ currentUser.displayName }}</el-tag>
+          <el-button
+            v-if="currentUser.username === 'admin'"
+            @click="showUserManagement"
+            size="small"
+            style="margin-left: 10px"
+          >
+            用户管理
+          </el-button>
           <el-button @click="handleLogout" size="small" style="margin-left: 10px">
             退出
           </el-button>
@@ -214,16 +222,26 @@
       <div class="copyright-footer">
         © 2024 Frank Guo | 上海诶爱科技有限公司
       </div>
+
+      <!-- 用户管理对话框 -->
+      <UserManagement
+        v-model="userManagementVisible"
+        :online-users="onlineUsersWithDetails"
+        :current-user="currentUser.username"
+        :session-id="sessionId"
+        @kick-user="handleKickUser"
+      />
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { VideoPlay, Download, Upload, Check } from '@element-plus/icons-vue'
 import CodeEditor from './components/CodeEditor.vue'
 import ChatPanel from './components/ChatPanel.vue'
+import UserManagement from './components/UserManagement.vue'
 
 // 登录相关
 const isLoggedIn = ref(false)
@@ -248,10 +266,18 @@ const compareResult = ref(null) // 对比结果
 // 聊天相关
 const chatMessages = ref([])
 
+// 用户管理相关
+const userManagementVisible = ref(false)
+
 // 组件引用
 const codeEditor = ref(null)
 const chatPanel = ref(null)
 const logContent = ref(null)
+
+// 在线用户详情(用于用户管理)
+const onlineUsersWithDetails = computed(() => {
+  return onlineUsers.value.map(username => ({ username }))
+})
 
 // 登录处理
 const handleLogin = async () => {
@@ -309,6 +335,21 @@ const handleLogout = async () => {
   sessionId.value = ''
   currentUser.value = { username: '', displayName: '' }
   ElMessage.success('已退出登录')
+}
+
+// 显示用户管理
+const showUserManagement = () => {
+  userManagementVisible.value = true
+}
+
+// 踢出用户
+const handleKickUser = (username) => {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({
+      type: 'kick_user',
+      data: { username }
+    }))
+  }
 }
 
 // WebSocket连接
@@ -376,6 +417,31 @@ const handleWebSocketMessage = (message) => {
         message: `${message.username} 离开了房间`,
         timestamp: message.timestamp
       })
+      break
+
+    case 'user_kicked':
+      // 用户被踢出
+      if (message.data && message.data.username) {
+        const kickedUser = message.data.username
+        chatMessages.value.push({
+          type: 'system',
+          message: `${kickedUser} 被管理员踢出房间`,
+          timestamp: message.timestamp
+        })
+
+        // 如果被踢的是当前用户，强制登出
+        if (kickedUser === currentUser.value.username) {
+          ElMessage.warning('您已被管理员踢出房间')
+          setTimeout(() => {
+            if (ws) {
+              ws.close()
+            }
+            isLoggedIn.value = false
+            sessionId.value = ''
+            currentUser.value = { username: '', displayName: '' }
+          }, 1000)
+        }
+      }
       break
 
     case 'edit':
