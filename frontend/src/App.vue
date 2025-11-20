@@ -110,6 +110,12 @@
             >
               编译并运行
             </el-button>
+            <el-button
+              @click="downloadCode"
+              :icon="Download"
+            >
+              下载代码
+            </el-button>
           </div>
 
           <!-- 日志区 -->
@@ -130,6 +136,7 @@
             ref="chatPanel"
             :messages="chatMessages"
             :current-user="currentUser.username"
+            :session-id="sessionId"
             @send-message="sendChatMessage"
           />
         </el-aside>
@@ -141,7 +148,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { VideoPlay } from '@element-plus/icons-vue'
+import { VideoPlay, Download } from '@element-plus/icons-vue'
 import CodeEditor from './components/CodeEditor.vue'
 import ChatPanel from './components/ChatPanel.vue'
 
@@ -376,11 +383,22 @@ const compileAndRun = () => {
 // 发送聊天消息
 const sendChatMessage = (message) => {
   if (ws && ws.readyState === WebSocket.OPEN) {
+    // 支持文本和文件消息
+    const msgData = typeof message === 'string'
+      ? { message, messageType: 'text' }
+      : { ...message, messageType: message.type || 'text' }
+
     ws.send(JSON.stringify({
       type: 'chat',
-      data: { message }
+      data: msgData
     }))
   }
+}
+
+// 下载代码
+const downloadCode = () => {
+  const url = `/api/download/code?session=${sessionId.value}`
+  window.location.href = url
 }
 
 // 清空输出

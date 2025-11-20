@@ -43,7 +43,12 @@ type CursorPosition struct {
 
 // ChatMessage 聊天消息
 type ChatMessage struct {
-	Message string `json:"message"`
+	Message     string `json:"message"`
+	MessageType string `json:"messageType"` // text, emoji, image, file
+	FileURL     string `json:"fileUrl,omitempty"`
+	FileName    string `json:"fileName,omitempty"`
+	FileSize    int64  `json:"fileSize,omitempty"`
+	ReplyTo     int    `json:"replyTo,omitempty"` // 引用的消息ID
 }
 
 // CompileRequest 编译请求
