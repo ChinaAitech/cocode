@@ -37,6 +37,11 @@ func main() {
 		log.Fatalf("创建临时目录失败: %v", err)
 	}
 
+	// 初始化上传目录
+	if err := handlers.InitUploadDir(); err != nil {
+		log.Fatalf("创建上传目录失败: %v", err)
+	}
+
 	// 初始化WebSocket Hub
 	handlers.InitWebSocketHub()
 
@@ -46,6 +51,9 @@ func main() {
 	// API路由
 	mux.HandleFunc("/api/login", handlers.HandleLogin)
 	mux.HandleFunc("/api/logout", handlers.HandleLogout)
+	mux.HandleFunc("/api/upload", handlers.HandleFileUpload)
+	mux.HandleFunc("/api/download/code", handlers.HandleCodeDownload)
+	mux.HandleFunc("/uploads/", handlers.HandleFileServe)
 	mux.HandleFunc("/ws", handlers.HandleWebSocket)
 
 	// 静态文件服务

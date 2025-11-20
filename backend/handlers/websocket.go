@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -54,13 +55,20 @@ func HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 
 	hub.RegisterClient(client)
 
-	// 发送当前代码状态
+	// 发送当前代码状态和共享状态
 	codeState := hub.GetCodeState()
+	sharedState := hub.GetSharedState()
 	initMessage := models.WebSocketMessage{
 		Type:      "init",
 		Username:  "system",
 		Timestamp: time.Now().Unix(),
-		Data:      codeState,
+		Data: map[string]interface{}{
+			"code":        codeState.Code,
+			"inputData":   sharedState.InputData,
+			"outputData":  sharedState.OutputData,
+			"compileLog":  sharedState.CompileLog,
+			"answer":      sharedState.Answer,
+		},
 	}
 	initData, _ := json.Marshal(initMessage)
 	client.Send <- initData
@@ -137,9 +145,23 @@ func readPump(client *services.Client, hub *services.CollaborationHub) {
 					hub.UpdateCodeState(code)
 				}
 			}
+		case "input_change":
+			// 输入数据变化
+			if data, ok := wsMsg.Data.(map[string]interface{}); ok {
+				if input, ok := data["input"].(string); ok {
+					hub.UpdateInputData(input)
+				}
+			}
+		case "answer_change":
+			// 标准答案变化
+			if data, ok := wsMsg.Data.(map[string]interface{}); ok {
+				if answer, ok := data["answer"].(string); ok {
+					hub.UpdateAnswer(answer)
+				}
+			}
 		case "compile":
 			// 编译请求（异步处理）
-			go handleCompileRequest(client, wsMsg)
+			go handleCompileRequest(client, wsMsg, hub)
 			continue // 不广播编译请求
 		}
 
@@ -180,7 +202,7 @@ func writePump(client *services.Client) {
 }
 
 // handleCompileRequest 处理编译请求
-func handleCompileRequest(client *services.Client, msg models.WebSocketMessage) {
+func handleCompileRequest(client *services.Client, msg models.WebSocketMessage, hub *services.CollaborationHub) {
 	data, ok := msg.Data.(map[string]interface{})
 	if !ok {
 		return
@@ -189,17 +211,41 @@ func handleCompileRequest(client *services.Client, msg models.WebSocketMessage) 
 	code, _ := data["code"].(string)
 	input, _ := data["input"].(string)
 
+	// 获取共享输入数据（如果请求中没有指定）
+	if input == "" {
+		sharedState := hub.GetSharedState()
+		input = sharedState.InputData
+	}
+
 	// 执行编译
 	result := services.CompileAndRun(code, input)
 
-	// 发送结果给请求者
-	responseMsg := models.WebSocketMessage{
+	// 添加编译记录
+	hub.AddCompileRecord(client.Username, result.Success)
+
+	// 更新共享输出和日志
+	hub.UpdateOutputData(result.Output)
+	logMsg := fmt.Sprintf("\n[%s] %s 执行了编译\n%s\n",
+		time.Now().Format("15:04:05"),
+		client.Username,
+		result.Message)
+	currentLog := hub.GetSharedState().CompileLog
+	hub.UpdateCompileLog(currentLog + logMsg)
+
+	// 广播编译结果给所有用户
+	broadcastMsg := models.WebSocketMessage{
 		Type:      "compile_result",
-		Username:  "system",
+		Username:  client.Username,
 		Timestamp: time.Now().Unix(),
-		Data:      result,
+		Data: map[string]interface{}{
+			"success":    result.Success,
+			"message":    result.Message,
+			"output":     result.Output,
+			"compiledBy": client.Username,
+			"compileLog": hub.GetSharedState().CompileLog,
+		},
 	}
 
-	responseData, _ := json.Marshal(responseMsg)
-	client.Send <- responseData
+	broadcastData, _ := json.Marshal(broadcastMsg)
+	hub.BroadcastMessage(broadcastData)
 }
