@@ -70,3 +70,19 @@ type CodeState struct {
 	Version int       `json:"version"` // 版本号
 	Updated time.Time `json:"updated"` // 更新时间
 }
+
+// SharedState 共享状态（输入、输出、日志）
+type SharedState struct {
+	InputData   string    `json:"inputData"`   // 输入数据
+	OutputData  string    `json:"outputData"`  // 输出数据
+	CompileLog  string    `json:"compileLog"`  // 编译日志
+	Answer      string    `json:"answer"`      // 标准答案
+	Updated     time.Time `json:"updated"`     // 更新时间
+}
+
+// CompileRecord 编译记录
+type CompileRecord struct {
+	Username  string    `json:"username"`  // 执行编译的用户
+	Timestamp time.Time `json:"timestamp"` // 编译时间
+	Success   bool      `json:"success"`   // 是否成功
+}

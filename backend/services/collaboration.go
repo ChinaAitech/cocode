@@ -19,12 +19,14 @@ type Client struct {
 
 // CollaborationHub 协同编辑中心
 type CollaborationHub struct {
-	clients    map[*Client]bool
-	broadcast  chan []byte
-	register   chan *Client
-	unregister chan *Client
-	codeState  *models.CodeState
-	mu         sync.RWMutex
+	clients        map[*Client]bool
+	broadcast      chan []byte
+	register       chan *Client
+	unregister     chan *Client
+	codeState      *models.CodeState
+	sharedState    *models.SharedState
+	compileRecords []models.CompileRecord
+	mu             sync.RWMutex
 }
 
 // NewCollaborationHub 创建新的协同中心
@@ -39,6 +41,14 @@ func NewCollaborationHub() *CollaborationHub {
 			Version: 0,
 			Updated: time.Now(),
 		},
+		sharedState: &models.SharedState{
+			InputData:  "",
+			OutputData: "",
+			CompileLog: "等待编译...\n",
+			Answer:     "",
+			Updated:    time.Now(),
+		},
+		compileRecords: make([]models.CompileRecord, 0),
 	}
 }
 
@@ -115,4 +125,69 @@ func (h *CollaborationHub) RegisterClient(client *Client) {
 // UnregisterClient 注销客户端
 func (h *CollaborationHub) UnregisterClient(client *Client) {
 	h.unregister <- client
+}
+
+// GetSharedState 获取共享状态
+func (h *CollaborationHub) GetSharedState() *models.SharedState {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	return h.sharedState
+}
+
+// UpdateInputData 更新输入数据
+func (h *CollaborationHub) UpdateInputData(input string) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.sharedState.InputData = input
+	h.sharedState.Updated = time.Now()
+}
+
+// UpdateOutputData 更新输出数据
+func (h *CollaborationHub) UpdateOutputData(output string) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.sharedState.OutputData = output
+	h.sharedState.Updated = time.Now()
+}
+
+// UpdateCompileLog 更新编译日志
+func (h *CollaborationHub) UpdateCompileLog(log string) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.sharedState.CompileLog = log
+	h.sharedState.Updated = time.Now()
+}
+
+// UpdateAnswer 更新标准答案
+func (h *CollaborationHub) UpdateAnswer(answer string) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.sharedState.Answer = answer
+	h.sharedState.Updated = time.Now()
+}
+
+// AddCompileRecord 添加编译记录
+func (h *CollaborationHub) AddCompileRecord(username string, success bool) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	record := models.CompileRecord{
+		Username:  username,
+		Timestamp: time.Now(),
+		Success:   success,
+	}
+	h.compileRecords = append(h.compileRecords, record)
+
+	// 只保留最近10条记录
+	if len(h.compileRecords) > 10 {
+		h.compileRecords = h.compileRecords[len(h.compileRecords)-10:]
+	}
+}
+
+// GetCompileRecords 获取编译记录
+func (h *CollaborationHub) GetCompileRecords() []models.CompileRecord {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	records := make([]models.CompileRecord, len(h.compileRecords))
+	copy(records, h.compileRecords)
+	return records
 }

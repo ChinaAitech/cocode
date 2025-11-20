@@ -77,12 +77,25 @@
           <!-- 输入输出区 -->
           <div class="io-section">
             <div class="input-area">
-              <div class="area-header">输入区 (stdin)</div>
+              <div class="area-header">
+                输入区 (stdin)
+                <el-upload
+                  action="/api/upload"
+                  :headers="{ 'X-Session-ID': sessionId }"
+                  :show-file-list="false"
+                  :before-upload="beforeInputUpload"
+                  :on-success="handleInputFileSuccess"
+                  accept=".txt"
+                >
+                  <el-button size="small" :icon="Upload">上传文件</el-button>
+                </el-upload>
+              </div>
               <el-input
                 v-model="inputData"
                 type="textarea"
                 :rows="6"
                 placeholder="输入程序的标准输入..."
+                @input="handleInputChange"
               />
             </div>
             <div class="output-area">
@@ -97,6 +110,56 @@
                 readonly
                 placeholder="程序输出将显示在这里..."
               />
+            </div>
+          </div>
+
+          <!-- 标答和对比区 -->
+          <div class="io-section" style="margin-top: 10px">
+            <div class="input-area">
+              <div class="area-header">
+                标准答案
+                <el-upload
+                  action="/api/upload"
+                  :headers="{ 'X-Session-ID': sessionId }"
+                  :show-file-list="false"
+                  :before-upload="beforeInputUpload"
+                  :on-success="handleAnswerFileSuccess"
+                  accept=".txt"
+                >
+                  <el-button size="small" :icon="Upload">上传文件</el-button>
+                </el-upload>
+              </div>
+              <el-input
+                v-model="answerData"
+                type="textarea"
+                :rows="6"
+                placeholder="输入标准答案..."
+                @input="handleAnswerChange"
+              />
+            </div>
+            <div class="output-area">
+              <div class="area-header">
+                对比结果
+                <el-button @click="compareOutput" size="small" type="primary">对比</el-button>
+              </div>
+              <div class="compare-result" v-if="compareResult">
+                <div v-if="compareResult.isMatch" class="match-success">
+                  ✅ 输出完全匹配！
+                </div>
+                <div v-else class="match-failed">
+                  <div class="diff-summary">❌ 输出不匹配（{{ compareResult.differentLines.length }} 行不同）</div>
+                  <div class="diff-details">
+                    <div v-for="(diff, idx) in compareResult.differentLines" :key="idx" class="diff-line">
+                      <div class="line-number">第 {{ diff.line }} 行：</div>
+                      <div class="expected">期望: {{ diff.expected || '(空行)' }}</div>
+                      <div class="actual">实际: {{ diff.actual || '(空行)' }}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div v-else class="no-compare">
+                点击"对比"按钮查看结果
+              </div>
             </div>
           </div>
 
@@ -148,7 +211,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { VideoPlay, Download } from '@element-plus/icons-vue'
+import { VideoPlay, Download, Upload } from '@element-plus/icons-vue'
 import CodeEditor from './components/CodeEditor.vue'
 import ChatPanel from './components/ChatPanel.vue'
 
@@ -169,6 +232,8 @@ const inputData = ref('')
 const outputData = ref('')
 const compileLog = ref('等待编译...\n')
 const compiling = ref(false)
+const answerData = ref('') // 标准答案
+const compareResult = ref(null) // 对比结果
 
 // 聊天相关
 const chatMessages = ref([])
@@ -275,9 +340,13 @@ const connectWebSocket = () => {
 const handleWebSocketMessage = (message) => {
   switch (message.type) {
     case 'init':
-      // 初始化代码
-      if (message.data && message.data.code) {
-        code.value = message.data.code
+      // 初始化所有数据
+      if (message.data) {
+        code.value = message.data.code || ''
+        inputData.value = message.data.inputData || ''
+        outputData.value = message.data.outputData || ''
+        compileLog.value = message.data.compileLog || '等待编译...\n'
+        answerData.value = message.data.answer || ''
       }
       break
 
@@ -306,6 +375,20 @@ const handleWebSocketMessage = (message) => {
       }
       break
 
+    case 'input_change':
+      // 输入数据变化
+      if (message.username !== currentUser.value.username && message.data) {
+        inputData.value = message.data.input
+      }
+      break
+
+    case 'answer_change':
+      // 标准答案变化
+      if (message.username !== currentUser.value.username && message.data) {
+        answerData.value = message.data.answer
+      }
+      break
+
     case 'cursor':
       // 光标位置更新
       if (message.username !== currentUser.value.username) {
@@ -324,16 +407,28 @@ const handleWebSocketMessage = (message) => {
       break
 
     case 'compile_result':
-      // 编译结果
+      // 编译结果（已经包含所有数据）
       compiling.value = false
       const result = message.data
-      compileLog.value += `\n--- 编译结果 ---\n${result.message}\n`
 
-      if (result.success) {
+      // 更新输出和日志（所有用户同步）
+      if (result.output !== undefined) {
         outputData.value = result.output
-        ElMessage.success('编译运行成功')
+      }
+      if (result.compileLog !== undefined) {
+        compileLog.value = result.compileLog
+      }
+
+      // 只对编译发起者显示提示
+      if (message.username === currentUser.value.username) {
+        if (result.success) {
+          ElMessage.success('编译运行成功')
+        } else {
+          ElMessage.error('编译失败')
+        }
       } else {
-        ElMessage.error('编译失败')
+        // 其他用户看到的通知
+        ElMessage.info(`${result.compiledBy || message.username} 执行了编译`)
       }
 
       // 滚动到日志底部
@@ -399,6 +494,103 @@ const sendChatMessage = (message) => {
 const downloadCode = () => {
   const url = `/api/download/code?session=${sessionId.value}`
   window.location.href = url
+}
+
+// 输入数据变化
+const handleInputChange = () => {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({
+      type: 'input_change',
+      data: { input: inputData.value }
+    }))
+  }
+}
+
+// 标准答案变化
+const handleAnswerChange = () => {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({
+      type: 'answer_change',
+      data: { answer: answerData.value }
+    }))
+  }
+}
+
+// 文件上传前检查
+const beforeInputUpload = (file) => {
+  const maxSize = 10 * 1024 * 1024 // 10MB
+  if (file.size > maxSize) {
+    ElMessage.error('文件大小不能超过 10MB')
+    return false
+  }
+  return true
+}
+
+// 输入文件上传成功
+const handleInputFileSuccess = (response) => {
+  if (response.success) {
+    // 读取文件内容
+    fetch(response.fileUrl)
+      .then(res => res.text())
+      .then(content => {
+        inputData.value = content
+        handleInputChange() // 同步到其他用户
+        ElMessage.success('输入文件加载成功')
+      })
+      .catch(() => {
+        ElMessage.error('读取文件内容失败')
+      })
+  }
+}
+
+// 标答文件上传成功
+const handleAnswerFileSuccess = (response) => {
+  if (response.success) {
+    // 读取文件内容
+    fetch(response.fileUrl)
+      .then(res => res.text())
+      .then(content => {
+        answerData.value = content
+        handleAnswerChange() // 同步到其他用户
+        ElMessage.success('标答文件加载成功')
+      })
+      .catch(() => {
+        ElMessage.error('读取文件内容失败')
+      })
+  }
+}
+
+// 对比输出
+const compareOutput = () => {
+  const outputLines = outputData.value.split('\n')
+  const answerLines = answerData.value.split('\n')
+
+  const maxLines = Math.max(outputLines.length, answerLines.length)
+  const differentLines = []
+
+  for (let i = 0; i < maxLines; i++) {
+    const outputLine = outputLines[i] || ''
+    const answerLine = answerLines[i] || ''
+
+    if (outputLine.trim() !== answerLine.trim()) {
+      differentLines.push({
+        line: i + 1,
+        expected: answerLine,
+        actual: outputLine
+      })
+    }
+  }
+
+  compareResult.value = {
+    isMatch: differentLines.length === 0,
+    differentLines: differentLines
+  }
+
+  if (compareResult.value.isMatch) {
+    ElMessage.success('输出完全匹配！')
+  } else {
+    ElMessage.warning(`发现 ${differentLines.length} 行不匹配`)
+  }
 }
 
 // 清空输出
@@ -575,5 +767,77 @@ onUnmounted(() => {
 .chat-section {
   border-left: 1px solid #ddd;
   background: #fafafa;
+}
+
+/* 对比结果区 */
+.compare-result {
+  background: #f5f5f5;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 10px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.match-success {
+  color: #67c23a;
+  font-size: 16px;
+  font-weight: bold;
+  text-align: center;
+  padding: 20px;
+}
+
+.match-failed {
+  color: #f56c6c;
+}
+
+.diff-summary {
+  font-weight: bold;
+  margin-bottom: 10px;
+  font-size: 14px;
+}
+
+.diff-details {
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.diff-line {
+  background: white;
+  border: 1px solid #eee;
+  border-radius: 4px;
+  padding: 8px;
+  margin-bottom: 8px;
+  font-size: 12px;
+}
+
+.line-number {
+  font-weight: bold;
+  color: #909399;
+  margin-bottom: 4px;
+}
+
+.expected {
+  color: #67c23a;
+  font-family: 'Courier New', monospace;
+  padding: 2px 4px;
+  background: #f0f9ff;
+  border-radius: 2px;
+  margin-bottom: 2px;
+}
+
+.actual {
+  color: #f56c6c;
+  font-family: 'Courier New', monospace;
+  padding: 2px 4px;
+  background: #fef0f0;
+  border-radius: 2px;
+}
+
+.no-compare {
+  text-align: center;
+  color: #909399;
+  padding: 40px 20px;
+  font-size: 14px;
 }
 </style>
