@@ -71,7 +71,7 @@ onUnmounted(() => {
 <style scoped>
 .code-editor {
   width: 100%;
-  height: 400px;
+  height: 100%;
   border: 1px solid #ddd;
   border-radius: 4px;
   overflow: hidden;

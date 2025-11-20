@@ -81,11 +81,13 @@
               </div>
             </div>
           </div>
-          <CodeEditor
-            ref="codeEditor"
-            :code="code"
-            @update:code="handleCodeUpdate"
-          />
+          <div class="code-editor-container">
+            <CodeEditor
+              ref="codeEditor"
+              :code="code"
+              @update:code="handleCodeUpdate"
+            />
+          </div>
 
           <!-- 输入输出标答三列布局 -->
           <div class="io-section-three">
@@ -771,8 +773,15 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   padding: 0;
-  overflow-y: auto;
-  justify-content: flex-start;
+  overflow: hidden;
+  height: 100%;
+}
+
+.code-editor-container {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .editor-header {
