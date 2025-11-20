@@ -11,10 +11,11 @@ import (
 
 // Client WebSocket客户端
 type Client struct {
-	Username string
-	Conn     *websocket.Conn
-	Send     chan []byte
-	Hub      *CollaborationHub
+	Username    string
+	DisplayName string
+	Conn        *websocket.Conn
+	Send        chan []byte
+	Hub         *CollaborationHub
 }
 
 // CollaborationHub 协同编辑中心
@@ -105,14 +106,23 @@ func (h *CollaborationHub) BroadcastMessage(message []byte) {
 	h.broadcast <- message
 }
 
+// OnlineUser 在线用户信息
+type OnlineUser struct {
+	Username    string `json:"username"`
+	DisplayName string `json:"displayName"`
+}
+
 // GetOnlineUsers 获取在线用户列表
-func (h *CollaborationHub) GetOnlineUsers() []string {
+func (h *CollaborationHub) GetOnlineUsers() []OnlineUser {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 
-	users := make([]string, 0, len(h.clients))
+	users := make([]OnlineUser, 0, len(h.clients))
 	for client := range h.clients {
-		users = append(users, client.Username)
+		users = append(users, OnlineUser{
+			Username:    client.Username,
+			DisplayName: client.DisplayName,
+		})
 	}
 	return users
 }

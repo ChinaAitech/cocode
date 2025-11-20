@@ -9,7 +9,8 @@
       <!-- 在线用户标签页 -->
       <el-tab-pane label="在线用户" name="online">
         <el-table :data="onlineUsers" style="width: 100%">
-          <el-table-column prop="username" label="用户名" width="200" />
+          <el-table-column prop="displayName" label="显示名称" width="150" />
+          <el-table-column prop="username" label="用户名" width="150" />
           <el-table-column label="状态" width="100">
             <template #default>
               <el-tag type="success">在线</el-tag>

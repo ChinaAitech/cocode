@@ -39,6 +39,13 @@ func HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// 获取用户信息
+	user, err := services.GetUserByUsername(session.Username)
+	if err != nil {
+		http.Error(w, "User not found", http.StatusNotFound)
+		return
+	}
+
 	// 升级为WebSocket连接
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -47,10 +54,11 @@ func HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 	}
 
 	client := &services.Client{
-		Username: session.Username,
-		Conn:     conn,
-		Send:     make(chan []byte, 256),
-		Hub:      hub,
+		Username:    session.Username,
+		DisplayName: user.DisplayName,
+		Conn:        conn,
+		Send:        make(chan []byte, 256),
+		Hub:         hub,
 	}
 
 	hub.RegisterClient(client)

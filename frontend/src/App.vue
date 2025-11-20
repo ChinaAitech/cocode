@@ -72,11 +72,11 @@
                 在线用户:
                 <el-tag
                   v-for="user in onlineUsers"
-                  :key="user"
+                  :key="user.username"
                   size="small"
                   style="margin-left: 5px"
                 >
-                  {{ user }}
+                  {{ user.displayName }}
                 </el-tag>
               </div>
             </div>
@@ -276,7 +276,7 @@ const logContent = ref(null)
 
 // 在线用户详情(用于用户管理)
 const onlineUsersWithDetails = computed(() => {
-  return onlineUsers.value.map(username => ({ username }))
+  return onlineUsers.value
 })
 
 // 倒序显示编译日志（最新的在上面）
@@ -770,7 +770,7 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   padding: 10px;
-  overflow: hidden;
+  overflow-y: auto;
   justify-content: flex-start;
 }
 
@@ -827,13 +827,13 @@ onUnmounted(() => {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
-  min-height: 100px;
-  max-height: 150px;
+  height: 150px;
 }
 
 .log-half, .compare-half {
   display: flex;
   flex-direction: column;
+  min-height: 0;
 }
 
 .log-header {
